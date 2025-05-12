@@ -79,7 +79,17 @@ class LinuxGrabber {
     }
 
     static void Main(string[] args) {
-        string processName = "Cemu"; // Replace with target
+        string processName = null;
+        Process[] processes = Process.GetProcesses();
+        foreach (Process process in processes) {
+            if (process.ProcessName.ToLower() == "cemu" || process.ProcessName.ToLower() == "xapfish") {
+                processName = Convert.ToString(process.ProcessName);
+            }
+        }
+        if (processName == null) {
+            Console.WriteLine("Could not find cemu or xapfish process.");
+            return;
+        }
 
         Process targetProcess = Process.GetProcessesByName(processName).FirstOrDefault();
         if (targetProcess == null) {
@@ -154,7 +164,7 @@ class LinuxGrabber {
 				return (UIntPtr) (i - j + 1);
 			}
         }
-		
+
         return UIntPtr.Zero;
     }
 }
