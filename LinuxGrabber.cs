@@ -124,7 +124,7 @@ class LinuxGrabber {
                         name = name.Replace("\n", "").Replace("\r", ""); // Remove newline characters
 
                         string nnidHex = BitConverter.ToString(p3).Replace("-", "");
-                        int nnidDec = Convert.ToInt32(nnidHex, 16);
+                        int nnidDec = BitConverter.ToInt32(p3.Reverse().ToArray(), 0);
                         Console.WriteLine($"Player {i}: {nnidHex} | {nnidDec} | {name}");
                     }
 
