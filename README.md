@@ -1,5 +1,10 @@
 # LinuxGrabber
-A PID grabber for Splatoon v288 for Cemu running on Linux.
+A CLI PID grabber for Splatoon v288 for Cemu running on Linux.
+
+# Output
+The output contains the PID in hex and decimal representations, plus the player's name.
+
+![image](preview.png)
 
 ## Compile
 You'll need the mono package to compile the program. I developed this application on Arch linux, so I installed mono using:
