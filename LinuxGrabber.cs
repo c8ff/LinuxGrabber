@@ -89,8 +89,6 @@ class LinuxGrabber {
 
         int pid = targetProcess.Id;
 
-        Console.WriteLine("PID: " + pid);
-
         // Read the memory maps
         string mapsPath = $"/proc/{pid}/maps";
         string[] mapsLines = File.ReadAllLines(mapsPath);
@@ -98,7 +96,6 @@ class LinuxGrabber {
         // BUG: If it matches from the start, it won't count it as matched, for some reason.
         byte?[] patternBytes = new byte?[]{0x02, 0xD4, 0xE7};
 
-        Console.WriteLine("" + patternBytes.Length);
         foreach (string line in mapsLines) {
             var split = line.Split(" ");
 
