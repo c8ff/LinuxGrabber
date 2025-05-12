@@ -30,5 +30,5 @@ And you have the executable.
 As this application needs to access another's process memory, it needs to be run as root or as a user that has permission to do so:
 
 ```bash
-sudo ./LinuxGrabber
+sudo mono ./LinuxGrabber
 ```
