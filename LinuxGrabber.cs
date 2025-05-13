@@ -137,8 +137,7 @@ class LinuxGrabber {
                         int nnidDec = BitConverter.ToInt32(p3.Reverse().ToArray(), 0);
                         Console.WriteLine($"Player {i}: {nnidHex} | {nnidDec} | {name}");
                     }
-
-                    break;
+                    return;
                 } else {
                     Console.WriteLine("No match :(");
                 }
@@ -147,6 +146,8 @@ class LinuxGrabber {
                 break;
             }
         }
+
+        Console.WriteLine("Unable to find game's memory address. Is the game running?");
     }
 
     private static UIntPtr FindMatch(byte?[] pattern, byte[] buffer, UIntPtr bytesRead) {
