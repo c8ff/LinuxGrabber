@@ -142,13 +142,11 @@ class LinuxGrabber {
                         string nnidHex = BitConverter.ToString(p3).Replace("-", "");
                         int nnidDec = BitConverter.ToInt32(p3.Reverse().ToArray(), 0);
                         Console.WriteLine($"Player {i}: {nnidHex} | {nnidDec} | {name}");
-
-                        string now = DateTime.Now.ToString();
-                        Console.WriteLine($"\nFetched at: {now}");
                     }
+
+                    string now = DateTime.Now.ToString();
+                    Console.WriteLine($"\nFetched at: {now}");
                     return;
-                } else {
-                    Console.WriteLine("No match :(");
                 }
             } catch (Exception e) {
                 Console.WriteLine(e.ToString());
