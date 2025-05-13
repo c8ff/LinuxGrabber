@@ -79,6 +79,10 @@ class LinuxGrabber {
     }
 
     static void Main(string[] args) {
+        // Ensure characters are displayed on the console properly.
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.WriteLine("LinuxGrabber by c8ff (Winterberry).");
+
         string processName = null;
         Process[] processes = Process.GetProcesses();
         foreach (Process process in processes) {
