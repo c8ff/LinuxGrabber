@@ -91,7 +91,7 @@ class LinuxGrabber {
             }
         }
         if (processName == null) {
-            Console.WriteLine("Could not find cemu or xapfish process.");
+            Console.WriteLine("Could not find Cemu process.");
             return;
         }
 
@@ -126,6 +126,8 @@ class LinuxGrabber {
                 var bytes = ReadProcessMemory(pid, (ulong)(min + 0xE000000), (ulong)(len - 0xE000000));
                 var match = FindMatch(patternBytes, bytes, (UIntPtr)(len - 0xE000000));
 
+                Console.WriteLine("Player X: PID (Hex)| PID (Dec)  | Name");
+                Console.WriteLine("----------------------------------------------------");
                 if (match != UIntPtr.Zero) {
                     for (var i = 0; i < 8; i++) {
                         var p =  BitConverter.ToInt32(bytes.GetRange(-0x10000000 + 0x101DD330, 4).Reverse().ToArray(), 0);
@@ -140,6 +142,9 @@ class LinuxGrabber {
                         string nnidHex = BitConverter.ToString(p3).Replace("-", "");
                         int nnidDec = BitConverter.ToInt32(p3.Reverse().ToArray(), 0);
                         Console.WriteLine($"Player {i}: {nnidHex} | {nnidDec} | {name}");
+
+                        string now = DateTime.Now.ToString();
+                        Console.WriteLine($"\nFetched at: {now}");
                     }
                     return;
                 } else {
