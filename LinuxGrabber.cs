@@ -86,7 +86,7 @@ class LinuxGrabber {
         string processName = null;
         Process[] processes = Process.GetProcesses();
         foreach (Process process in processes) {
-            if (process.ProcessName.ToLower() == "cemu" || process.ProcessName.ToLower() == "xapfish") {
+            if (process.ProcessName.ToLower() == "cemu" || process.ProcessName.ToLower() == "xapfish" || process.ProcessName.ToLower()  == ".cemu-wrapped") {
                 processName = Convert.ToString(process.ProcessName);
             }
         }
