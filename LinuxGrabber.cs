@@ -49,6 +49,12 @@ class LinuxGrabber {
         IOVec[] remote_iov, ulong riovcnt,
         ulong flags);
 
+    [DllImport("libc", SetLastError = true)]
+    static extern long process_vm_writev(int pid,
+        IOVec[] local_iov, ulong liovcnt,
+        IOVec[] remote_iov, ulong riovcnt,
+        ulong flags);
+
     static byte[] ReadProcessMemory(int pid, ulong address, ulong length) {
         byte[] buffer = new byte[length];
         GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
@@ -69,7 +75,7 @@ class LinuxGrabber {
                 Console.WriteLine($"Failed to read memory. Error code: {Marshal.GetLastWin32Error()}");
                 return new byte[0];
             } else {
-                Console.WriteLine($"Read {nread} bytes from process {pid} at 0x{address:X}");
+                // Console.WriteLine($"Read {nread} bytes from process {pid} at 0x{address:X}");
             }
         } finally {
             handle.Free();
@@ -78,43 +84,100 @@ class LinuxGrabber {
         return buffer;
     }
 
+    static bool WriteProcessMemory(int pid, ulong address, byte[] data) {
+        GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+
+        try {
+            var local = new IOVec {
+                Base = new UIntPtr((ulong)handle.AddrOfPinnedObject().ToInt64()),
+                Length = (UIntPtr)data.Length
+            };
+
+            var remote = new IOVec {
+                Base = (UIntPtr)address,
+                Length = (UIntPtr)data.Length
+            };
+
+            long nwritten = process_vm_writev(pid, new[] { local }, 1, new[] { remote }, 1, 0);
+            if (nwritten == -1) {
+                Console.WriteLine($"Failed to write memory. Error code: {Marshal.GetLastWin32Error()}");
+                return false;
+            } else {
+                // Console.WriteLine($"Wrote {nwritten} bytes to process {pid} at 0x{address:X}");
+                return true;
+            }
+        } finally {
+            handle.Free();
+        }
+    }
+
+    static ulong min = 0;
+    static int pid = 0;
+
+    static byte[] readBytes(uint address, uint length) {
+        var bytes = ReadProcessMemory(pid, (ulong)(min + 0xE000000) + address - 0x10000000, length);
+        return bytes;
+    }
+
+    static uint readUInt32(uint address) {
+        var bytes = ReadProcessMemory(pid, (ulong)(min + 0xE000000) + address - 0x10000000, 4);
+        Array.Reverse(bytes);
+        return BitConverter.ToUInt32(bytes);
+    }
+
+    static float readFloat(uint address) {
+        var bytes = ReadProcessMemory(pid, (ulong)(min + 0xE000000) + address - 0x10000000, 4);
+        Array.Reverse(bytes);
+        return BitConverter.ToSingle(bytes, 0);
+    }
+
+    static void writeBytes(uint address, byte[] bytes) {
+        WriteProcessMemory(pid, (ulong)(min + 0xE000000) + address - 0x10000000, bytes);
+    }
+
+    static void writeUInt32(uint address, uint value) {
+        byte[] bytes = BitConverter.GetBytes(value);
+        Array.Reverse(bytes);
+        WriteProcessMemory(pid, (ulong)(min + 0xE000000) + address - 0x10000000, bytes);
+    }
+
+    static void writeFloat(uint address, float value) {
+        byte[] bytes = BitConverter.GetBytes(value);
+        Array.Reverse(bytes);
+        WriteProcessMemory(pid, (ulong)(min + 0xE000000) + address - 0x10000000, bytes);
+    }
+
     static void Main(string[] args) {
         // Ensure characters are displayed on the console properly.
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.WriteLine("LinuxGrabber by c8ff (Winterberry).");
 
-        string processName = null;
-        Process[] processes = Process.GetProcesses();
-        foreach (Process process in processes) {
-            if (process.ProcessName.ToLower() == "cemu" || process.ProcessName.ToLower() == "xapfish" || process.ProcessName.ToLower()  == ".cemu-wrapped") {
-                processName = Convert.ToString(process.ProcessName);
-            }
-        }
-        if (processName == null) {
+        // Faster PID grab
+        string[] targetNames = { "cemu", "xapfish", ".cemu-wrapped" };
+        Process targetProcess = Process.GetProcesses()
+            .FirstOrDefault(p => targetNames.Contains(p.ProcessName.ToLower()));
+
+        if (targetProcess == null) {
             Console.WriteLine("Could not find Cemu process.");
             return;
         }
 
-        Process targetProcess = Process.GetProcessesByName(processName).FirstOrDefault();
-        if (targetProcess == null) {
-            Console.WriteLine("Target process not found.");
-            return;
-        }
+        pid = targetProcess.Id;
 
-        int pid = targetProcess.Id;
+        // Console.WriteLine(pid);
 
         // Read the memory maps
         string mapsPath = $"/proc/{pid}/maps";
         string[] mapsLines = File.ReadAllLines(mapsPath);
 
         // BUG: If it matches from the start, it won't count it as matched, for some reason.
-        byte?[] patternBytes = new byte?[]{0x02, 0xD4, 0xE7};
+        byte?[] patternBytes = new byte?[] { 0x02, 0xD4, 0xE7 };
 
         foreach (string line in mapsLines) {
             var split = line.Split(" ");
 
             var addrP = split[0].Split("-");
-            var min = Convert.ToUInt64(addrP[0], 16);
+            min = Convert.ToUInt64(addrP[0], 16);
             var max = Convert.ToUInt64(addrP[1], 16);
 
             if (!split[1].Contains("r")) continue; // needs to be readable
@@ -122,36 +185,30 @@ class LinuxGrabber {
             if (len < 1308622848) continue; // specific to cemu
 
             try {
-                // TODO: Prevent reading the whole map memory
-                var bytes = ReadProcessMemory(pid, (ulong)(min + 0xE000000), (ulong)(len - 0xE000000));
-                var match = FindMatch(patternBytes, bytes, (UIntPtr)(len - 0xE000000));
+                // Prevent reading the whole map memory
+                var bytes = ReadProcessMemory(pid, (ulong)(min + 0xE000000), 20);
+                var match = FindMatch(patternBytes, bytes, (UIntPtr)(20));
 
                 Console.WriteLine("Player X: PID (Hex)| PID (Dec)  | Name");
                 Console.WriteLine("----------------------------------------------------");
                 if (match != UIntPtr.Zero) {
                     for (var i = 0; i < 8; i++) {
-                        var p =  BitConverter.ToInt32(bytes.GetRange(-0x10000000 + 0x101DD330, 4).Reverse().ToArray(), 0);
-                        var p1 = BitConverter.ToInt32(bytes.GetRange(-0x10000000 + (int) (p + 0x10), 4).Reverse().ToArray(), 0);
-                        var p2 = BitConverter.ToInt32(bytes.GetRange(-0x10000000 + (int) (p1 + i * 4), 4).Reverse().ToArray(), 0);
-                        var p3 =                      bytes.GetRange(-0x10000000 + (int) (p2 + 0xd0), 4);
-
-                        var nameBytes = bytes.GetRange(-0x10000000 + (int) (p2 + 0x6), 40);
+                        var ptrToPlayerInfo = readUInt32((uint)(readUInt32((uint)(readUInt32(0x101DD330) + 0x10)) + (uint)(i * 4)));
+                        var nameBytes = readBytes(ptrToPlayerInfo + 0x6, 32);
                         var name = Encoding.BigEndianUnicode.GetString(nameBytes);
                         name = name.Replace("\n", "").Replace("\r", ""); // Remove newline characters
 
-                        string nnidHex = BitConverter.ToString(p3).Replace("-", "");
-                        int nnidDec = BitConverter.ToInt32(p3.Reverse().ToArray(), 0);
-                        Console.WriteLine($"Player {i}: {nnidHex} | {nnidDec} | {name}");
+                        var pidRaw = readUInt32(ptrToPlayerInfo + 0xD0);
+                        string nnidHex = BitConverter.ToString(BitConverter.GetBytes(pidRaw)).Replace("-", "");
+                        Console.WriteLine($"Player {i}: {nnidHex} | {pidRaw} | {name}");
                     }
 
-		    var ptr = BitConverter.ToInt32(bytes.GetRange(-0x10000000 + 0x101E8980, 4).Reverse().ToArray(), 0);
-                    if (ptr != 0)
-                    {
-                        var index = bytes.GetRange(-0x10000000 + ptr + 0xBD, 1)[0] * 4;
-                        var sessionID = BitConverter.ToInt32(bytes.GetRange(-0x10000000 + ptr + index + 0xCC, 4).Reverse().ToArray(), 0);
-                        Console.WriteLine($"\nSession ID: {sessionID:X8}");
-                    }
-                    else
+                    var ptr = readUInt32(0x101E8980);
+                    if (ptr != 0) {
+                        var index = readBytes(ptr + 0xBD, 1)[0];
+                        var sessionID = readUInt32(ptr + index + 0xCC);
+                        Console.WriteLine($"\nSession ID: {sessionID:X8} (Dec: {sessionID})");
+                    } else
                         Console.WriteLine($"\nSession ID: None");
 
                     string now = DateTime.Now.ToString();
@@ -173,14 +230,14 @@ class LinuxGrabber {
 
         for (int i = 0, j = 0; i + patternLen <= br; i++) {
             if (pattern[j] == null || buffer[i] == pattern[j]) {
-				j++;
+                j++;
             } else {
-				j = 0;
+                j = 0;
             }
 
-			if (j >= patternLen) {
-				return (UIntPtr) (i - j + 1);
-			}
+            if (j >= patternLen) {
+                return (UIntPtr)(i - j + 1);
+            }
         }
 
         return UIntPtr.Zero;
