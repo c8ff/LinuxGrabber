@@ -207,7 +207,7 @@ class LinuxGrabber {
                     if (ptr != 0) {
                         var index = readBytes(ptr + 0xBD, 1)[0];
                         var sessionID = readUInt32(ptr + index + 0xCC);
-                        Console.WriteLine($"\nSession ID: {sessionID:X8}");
+                        Console.WriteLine($"\nSession ID: {sessionID:X8} (Dec: {sessionID})");
                     } else
                         Console.WriteLine($"\nSession ID: None");
 
