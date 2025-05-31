@@ -144,6 +144,16 @@ class LinuxGrabber {
                         Console.WriteLine($"Player {i}: {nnidHex} | {nnidDec} | {name}");
                     }
 
+		    var ptr = BitConverter.ToInt32(bytes.GetRange(-0x10000000 + 0x101E8980, 4).Reverse().ToArray(), 0);
+                    if (ptr != 0)
+                    {
+                        var index = bytes.GetRange(-0x10000000 + ptr + 0xBD, 1)[0] * 4;
+                        var sessionID = BitConverter.ToInt32(bytes.GetRange(-0x10000000 + ptr + index + 0xCC, 4).Reverse().ToArray(), 0);
+                        Console.WriteLine($"\nSession ID: {sessionID:X8}");
+                    }
+                    else
+                        Console.WriteLine($"\nSession ID: None");
+
                     string now = DateTime.Now.ToString();
                     Console.WriteLine($"\nFetched at: {now}");
                     return;
