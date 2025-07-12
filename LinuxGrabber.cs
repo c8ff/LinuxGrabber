@@ -16,11 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/*
- * The core functionality was taken from Principal_IDGrabber.
- * https://github.com/javiig8/Splatheap-PID-Tool/blob/master/PrincipalID_Grabber/Form1.cs
- */
-
 using System;
 using System.Diagnostics;
 using System.Linq;
